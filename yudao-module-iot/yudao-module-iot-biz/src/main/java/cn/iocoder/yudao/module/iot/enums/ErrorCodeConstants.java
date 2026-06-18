@@ -105,4 +105,12 @@ public interface ErrorCodeConstants {
     // ========== IoT 告警记录 1-050-014-000 ==========
     ErrorCode ALERT_RECORD_NOT_EXISTS = new ErrorCode(1_050_014_000, "IoT 告警记录不存在");
 
+    // ========== 会员-设备绑定 1-050-015-000 ============
+    ErrorCode DEVICE_ALREADY_BOUND = new ErrorCode(1_050_015_000, "设备已被其他账号绑定");
+    ErrorCode MEMBER_DEVICE_NOT_EXISTS = new ErrorCode(1_050_015_001, "未绑定该设备");
+    ErrorCode MEMBER_DEVICE_REGISTER_SIGN_INVALID = new ErrorCode(1_050_015_002, "设备注册签名校验失败");
+    ErrorCode MEMBER_DEVICE_REGISTER_PRODUCT_INVALID = new ErrorCode(1_050_015_003, "注册所用产品不存在或未开启动态注册");
+    ErrorCode MEMBER_DEVICE_MOBILE_NOT_MATCH = new ErrorCode(1_050_015_004, "手机号与当前登录账号不一致");
+    ErrorCode MEMBER_DEVICE_MEMBER_NOT_EXISTS = new ErrorCode(1_050_015_005, "会员不存在");
+
 }

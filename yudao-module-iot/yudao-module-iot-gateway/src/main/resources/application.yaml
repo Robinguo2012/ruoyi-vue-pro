@@ -112,7 +112,7 @@ yudao:
         # 针对引入的 MQTT 组件的配置
         # ====================================
         - id: mqtt-json
-          enabled: false
+          enabled: true
           protocol: mqtt
           port: 1883
           serialize: json
