@@ -75,6 +75,17 @@ public interface IotThingModelService {
     List<IotThingModelDO> getThingModelListByProductIdAndType(Long productId, Integer type);
 
     /**
+     * 【批量】获得多个产品的物模型列表
+     *
+     * 用于 App 端按设备列表所涉及的产品批量获取物模型，减少请求次数。
+     *
+     * @param productIds 产品编号集合
+     * @param type 物模型类型（可空，表示不限类型）
+     * @return 产品物模型列表
+     */
+    List<IotThingModelDO> getThingModelListByProductIds(Collection<Long> productIds, Integer type);
+
+    /**
      * 【缓存】获得产品物模型列表
      *
      * 注意：该方法会忽略租户信息，所以调用时，需要确认会不会有跨租户访问的风险！！！

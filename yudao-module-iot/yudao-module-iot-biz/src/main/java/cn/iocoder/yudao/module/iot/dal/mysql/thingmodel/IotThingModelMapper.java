@@ -57,6 +57,14 @@ public interface IotThingModelMapper extends BaseMapperX<IotThingModelDO> {
                 IotThingModelDO::getType, type);
     }
 
+    default List<IotThingModelDO> selectListByProductIds(Collection<Long> productIds, Integer type) {
+        return selectList(new LambdaQueryWrapperX<IotThingModelDO>()
+                .inIfPresent(IotThingModelDO::getProductId, productIds)
+                .eqIfPresent(IotThingModelDO::getType, type)
+                .orderByAsc(IotThingModelDO::getProductId)
+                .orderByAsc(IotThingModelDO::getId));
+    }
+
     default IotThingModelDO selectByProductIdAndName(Long productId, String name) {
         return selectOne(IotThingModelDO::getProductId, productId,
                 IotThingModelDO::getName, name);

@@ -13,6 +13,7 @@ import cn.iocoder.yudao.module.iot.core.topic.IotDeviceIdentity;
 import cn.iocoder.yudao.module.iot.core.topic.auth.IotDeviceRegisterReqDTO;
 import cn.iocoder.yudao.module.iot.core.topic.auth.IotDeviceRegisterRespDTO;
 import cn.iocoder.yudao.module.iot.core.util.IotDeviceAuthUtils;
+import cn.iocoder.yudao.module.iot.gateway.config.IotGatewayProperties;
 import cn.iocoder.yudao.module.iot.gateway.protocol.emqx.IotEmqxProtocol;
 import cn.iocoder.yudao.module.iot.gateway.service.device.message.IotDeviceMessageService;
 import cn.iocoder.yudao.module.iot.gateway.util.IotMqttTopicUtils;
@@ -21,6 +22,7 @@ import io.vertx.ext.web.RoutingContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * IoT 网关 EMQX 认证事件处理器
@@ -230,14 +232,35 @@ public class IotEmqxAuthEventHandler {
             }
 
             // 2. 执行 ACL 校验
-            boolean allowed = subscribe
+            boolean allowed = isAppClientAllowed(deviceInfo, topic) || (subscribe
                     ? IotMqttTopicUtils.isTopicSubscribeAllowed(topic, deviceInfo.getProductKey(), deviceInfo.getDeviceName())
-                    : IotMqttTopicUtils.isTopicPublishAllowed(topic, deviceInfo.getProductKey(), deviceInfo.getDeviceName());
+                    : IotMqttTopicUtils.isTopicPublishAllowed(topic, deviceInfo.getProductKey(), deviceInfo.getDeviceName()));
             sendAuthResponse(context, allowed ? RESULT_ALLOW : RESULT_DENY);
         } catch (Exception e) {
             log.error("[handleAcl][ACL 处理失败][body={}]", body, e);
             sendAuthResponse(context, RESULT_IGNORE);
         }
+    }
+
+    /**
+     * App 客户端（手机即设备）放行
+     *
+     * 手机端以"手机即设备"产品连接，但其要控制/订阅的设备分属其它产品 Key，
+     * 默认 ACL 只允许访问自身 /sys/{自己pk}/{自己dn}/ 前缀会被拒。
+     * 若该客户端产品 Key 在 {@link IotGatewayProperties#getAppProductKeys()} 配置集合内，
+     * 且访问的是 /sys/ 主题，则一律放行（手机端实际只会访问其绑定设备的主题）。
+     */
+    private boolean isAppClientAllowed(IotDeviceIdentity deviceInfo, String topic) {
+        Set<String> appProductKeys;
+        try {
+            appProductKeys = SpringUtil.getBean(IotGatewayProperties.class).getAppProductKeys();
+        } catch (Exception e) {
+            return false;
+        }
+        return appProductKeys != null
+                && !appProductKeys.isEmpty()
+                && appProductKeys.contains(deviceInfo.getProductKey())
+                && topic.startsWith("/sys/");
     }
 
     /**

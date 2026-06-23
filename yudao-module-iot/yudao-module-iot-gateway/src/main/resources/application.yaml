@@ -40,6 +40,9 @@ yudao:
       token:
         secret: yudaoIotGatewayTokenSecret123456789 # Token 密钥，至少32位
         expiration: 7d
+      # App 客户端（手机即设备）产品 Key —— 放行其访问绑定设备的 /sys/ 主题（订阅上报 + 下发控制）
+      app-product-keys:
+        - ke5EYZurCB3FwFXp
 
       # 协议实例列表
       protocols:

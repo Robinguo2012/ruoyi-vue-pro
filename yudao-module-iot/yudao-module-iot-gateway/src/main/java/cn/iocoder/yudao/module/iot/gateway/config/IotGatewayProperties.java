@@ -18,7 +18,9 @@ import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @ConfigurationProperties(prefix = "yudao.iot.gateway")
 @Validated
@@ -33,6 +35,17 @@ public class IotGatewayProperties {
      * Token 配置
      */
     private TokenProperties token;
+
+    /**
+     * App 客户端（手机即设备）的产品 Key 集合
+     *
+     * 这些客户端可访问其绑定设备的 {@code /sys/{productKey}/{deviceName}/...} 主题——
+     * 订阅设备 property/event 上报、下发 property-set/service-invoke 控制指令。
+     * 默认 ACL 只允许客户端访问自身产品前缀，而绑定设备与手机分属不同产品 Key，
+     * 因此需在此放行。在 application.yaml 通过
+     * {@code yudao.iot.gateway.app-product-keys} 配置。
+     */
+    private Set<String> appProductKeys = new HashSet<>();
 
     /**
      * 协议实例列表

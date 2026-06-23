@@ -15,6 +15,9 @@ public class IotAppDeviceRespVO {
     @Schema(description = "设备编号", example = "2048")
     private Long deviceId;
 
+    @Schema(description = "产品编号", example = "5")
+    private Long productId;
+
     @Schema(description = "产品标识", example = "ke5EYZurCB3FwFXp")
     private String productKey;
 

@@ -126,6 +126,7 @@ public class IotMemberDeviceServiceImpl implements IotMemberDeviceService {
             IotAppDeviceRespVO respVO = BeanUtils.toBean(memberDevice, IotAppDeviceRespVO.class);
             IotDeviceDO device = deviceMap.get(memberDevice.getDeviceId());
             if (device != null) {
+                respVO.setProductId(device.getProductId());
                 respVO.setState(device.getState());
                 respVO.setOnlineTime(device.getOnlineTime());
                 respVO.setPicUrl(device.getPicUrl());

@@ -146,6 +146,14 @@ public class IotThingModelServiceImpl implements IotThingModelService {
     }
 
     @Override
+    public List<IotThingModelDO> getThingModelListByProductIds(Collection<Long> productIds, Integer type) {
+        if (CollUtil.isEmpty(productIds)) {
+            return Collections.emptyList();
+        }
+        return thingModelMapper.selectListByProductIds(productIds, type);
+    }
+
+    @Override
     @Cacheable(value = RedisKeyConstants.THING_MODEL_LIST, key = "#productId")
     @TenantIgnore // 忽略租户信息
     public List<IotThingModelDO> getThingModelListByProductIdFromCache(Long productId) {

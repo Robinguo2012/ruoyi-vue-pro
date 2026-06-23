@@ -7,7 +7,9 @@ import cn.iocoder.yudao.module.iot.dal.dataobject.thingmodel.IotThingModelDO;
 import cn.iocoder.yudao.module.iot.dal.dataobject.thingmodel.model.ThingModelProperty;
 import cn.iocoder.yudao.module.iot.dal.dataobject.thingmodel.model.dataType.ThingModelBoolOrEnumDataSpecs;
 import cn.iocoder.yudao.module.iot.dal.dataobject.thingmodel.model.dataType.ThingModelDateOrTextDataSpecs;
+import cn.iocoder.yudao.module.iot.dal.mysql.thingmodel.IotThingModelMapper;
 import cn.iocoder.yudao.module.iot.enums.thingmodel.IotDataSpecsDataTypeEnum;
+import cn.iocoder.yudao.module.iot.enums.thingmodel.IotThingModelTypeEnum;
 import cn.iocoder.yudao.module.iot.service.device.IotDeviceModbusPointService;
 import cn.iocoder.yudao.module.iot.service.product.IotProductService;
 import org.junit.jupiter.api.Test;
@@ -17,11 +19,14 @@ import org.springframework.context.annotation.Import;
 import javax.annotation.Resource;
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link IotThingModelServiceImpl} 的单元测试
@@ -38,6 +43,51 @@ public class IotThingModelServiceImplTest extends BaseDbUnitTest {
     private IotProductService productService;
     @MockBean
     private IotDeviceModbusPointService deviceModbusPointService;
+
+    @Resource
+    private IotThingModelMapper thingModelMapper;
+
+    @Test
+    public void test_getThingModelListByProductIds_filterByProductIds() {
+        // 插入 3 个产品的物模型
+        thingModelMapper.insert(buildThingModelRow(1L, "temp", IotThingModelTypeEnum.PROPERTY.getType()));
+        thingModelMapper.insert(buildThingModelRow(2L, "humi", IotThingModelTypeEnum.PROPERTY.getType()));
+        thingModelMapper.insert(buildThingModelRow(3L, "switch", IotThingModelTypeEnum.PROPERTY.getType()));
+
+        // 只查产品 1、2
+        List<IotThingModelDO> result = thingModelService.getThingModelListByProductIds(
+                Arrays.asList(1L, 2L), null);
+
+        assertEquals(2, result.size());
+        assertEquals(2, result.stream().map(IotThingModelDO::getProductId).distinct().count());
+    }
+
+    @Test
+    public void test_getThingModelListByProductIds_filterByType() {
+        // 产品 10 同时有属性和服务
+        thingModelMapper.insert(buildThingModelRow(10L, "p1", IotThingModelTypeEnum.PROPERTY.getType()));
+        thingModelMapper.insert(buildThingModelRow(10L, "svc1", IotThingModelTypeEnum.SERVICE.getType()));
+
+        // 只取属性
+        List<IotThingModelDO> result = thingModelService.getThingModelListByProductIds(
+                Collections.singletonList(10L), IotThingModelTypeEnum.PROPERTY.getType());
+
+        assertEquals(1, result.size());
+        assertEquals("p1", result.get(0).getIdentifier());
+    }
+
+    @Test
+    public void test_getThingModelListByProductIds_empty() {
+        List<IotThingModelDO> result = thingModelService.getThingModelListByProductIds(
+                Collections.emptyList(), null);
+        assertTrue(result.isEmpty());
+    }
+
+    private IotThingModelDO buildThingModelRow(Long productId, String identifier, Integer type) {
+        return IotThingModelDO.builder()
+                .productId(productId).productKey("pk_" + productId)
+                .identifier(identifier).name(identifier).type(type).build();
+    }
 
     @Test
     public void testConvertThingModelPropertyValue_boolFromBooleanTrue() {
