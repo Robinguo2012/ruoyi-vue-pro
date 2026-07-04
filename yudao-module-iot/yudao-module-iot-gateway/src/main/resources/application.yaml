@@ -115,7 +115,7 @@ yudao:
         # 针对引入的 MQTT 组件的配置
         # ====================================
         - id: mqtt-json
-          enabled: true
+          enabled: false
           protocol: mqtt
           port: 1883
           serialize: json
@@ -126,14 +126,14 @@ yudao:
         # 针对引入的 EMQX 组件的配置
         # ====================================
         - id: emqx-1
-          enabled: false
+          enabled: true # 对接外部真实 EMQX Broker（已禁用内嵌 mqtt-json）
           protocol: emqx
           port: 8090 # EMQX HTTP Hook 端口（/mqtt/auth、/mqtt/event）
           emqx:
             mqtt-host: 127.0.0.1                  # MQTT Broker 地址
             mqtt-port: 1883                       # MQTT Broker 端口
             mqtt-username: admin                  # MQTT 用户名
-            mqtt-password: public                 # MQTT 密码
+            mqtt-password: ghb420117                 # MQTT 密码
             mqtt-client-id: iot-gateway-mqtt      # MQTT 客户端 ID
             mqtt-ssl: false                       # 是否开启 SSL
             mqtt-topics:

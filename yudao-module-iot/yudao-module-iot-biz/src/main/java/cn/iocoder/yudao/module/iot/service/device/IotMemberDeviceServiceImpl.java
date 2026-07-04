@@ -8,6 +8,7 @@ import cn.iocoder.yudao.module.iot.controller.admin.device.vo.device.IotDeviceAu
 import cn.iocoder.yudao.module.iot.controller.admin.device.vo.device.IotDeviceSaveReqVO;
 import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceBindReqVO;
 import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceRespVO;
+import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceUpdateReqVO;
 import cn.iocoder.yudao.module.iot.core.biz.dto.IotDeviceAuthReqDTO;
 import cn.iocoder.yudao.module.iot.core.util.IotDeviceAuthUtils;
 import cn.iocoder.yudao.module.iot.core.util.IotProductAuthUtils;
@@ -149,6 +150,28 @@ public class IotMemberDeviceServiceImpl implements IotMemberDeviceService {
         }
         // 2. 删除绑定
         memberDeviceMapper.deleteById(memberDevice.getId());
+    }
+
+    @Override
+    public void updateDevice(Long memberId, IotAppDeviceUpdateReqVO reqVO) {
+        // 1. 校验设备存在
+        IotDeviceDO device = deviceService.getDeviceFromCache(reqVO.getProductKey(), reqVO.getDeviceName());
+        if (device == null) {
+            throw exception(DEVICE_NOT_EXISTS);
+        }
+        // 2. 校验绑定关系属于当前会员
+        IotMemberDeviceDO memberDevice = memberDeviceMapper
+                .selectByMemberIdAndDeviceId(memberId, device.getId());
+        if (memberDevice == null) {
+            throw exception(MEMBER_DEVICE_NOT_EXISTS);
+        }
+        // 3. 更新备注名（空串视为清除别名，displayName 会回退到 deviceName）
+        String nickname = StrUtil.isBlank(reqVO.getNickname()) ? "" : reqVO.getNickname().trim();
+        IotMemberDeviceDO updateObj = IotMemberDeviceDO.builder()
+                .id(memberDevice.getId())
+                .nickname(nickname)
+                .build();
+        memberDeviceMapper.updateById(updateObj);
     }
 
     /**

@@ -5,6 +5,7 @@ import cn.iocoder.yudao.module.iot.controller.admin.device.vo.device.IotDeviceAu
 import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceBindReqVO;
 import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceRegisterReqVO;
 import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceRespVO;
+import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceUpdateReqVO;
 import cn.iocoder.yudao.module.iot.service.device.IotMemberDeviceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -61,6 +62,13 @@ public class AppIotDeviceController {
     public CommonResult<Boolean> unbindDevice(@RequestParam("productKey") String productKey,
                                               @RequestParam("deviceName") String deviceName) {
         memberDeviceService.unbindDevice(getLoginUserId(), productKey, deviceName);
+        return success(true);
+    }
+
+    @PutMapping("/update")
+    @Operation(summary = "更新绑定设备的备注信息")
+    public CommonResult<Boolean> updateDevice(@Valid @RequestBody IotAppDeviceUpdateReqVO reqVO) {
+        memberDeviceService.updateDevice(getLoginUserId(), reqVO);
         return success(true);
     }
 

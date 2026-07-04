@@ -69,7 +69,8 @@
         <tika-core.version>2.9.3</tika-core.version> <!-- JDK8 不能从 2.9.3 升级到 3.X，会报 JDK8 不支持 -->
         <ip2region.version>2.7.0</ip2region.version>
         <bizlog-sdk.version>3.0.6</bizlog-sdk.version>
-        <netty.version>4.2.14.Final</netty.version>
+        <netty.version>4.1.132.Final</netty.version> <!-- Vert.x 4.5.26 要求 Netty 4.1.x；切勿使用 4.2.x，与 Vert.x 不兼容 -->
+        <jackson.version>2.18.6</jackson.version> <!-- Vert.x 4.5.26 要求 Jackson 2.18.x；Spring Boot 2.7.18 默认 2.13.5 缺少 StreamReadConstraints，会导致 JacksonCodec 静态初始化失败 -->
         <mqtt.version>1.2.5</mqtt.version>
         <vertx.version>4.5.26</vertx.version>
         <okhttp.version>4.12.0</okhttp.version>
@@ -97,6 +98,13 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-bom</artifactId>
                 <version>${netty.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson</groupId>
+                <artifactId>jackson-bom</artifactId>
+                <version>${jackson.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>

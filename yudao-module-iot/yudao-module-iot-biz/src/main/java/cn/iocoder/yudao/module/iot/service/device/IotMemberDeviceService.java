@@ -3,6 +3,7 @@ package cn.iocoder.yudao.module.iot.service.device;
 import cn.iocoder.yudao.module.iot.controller.admin.device.vo.device.IotDeviceAuthInfoRespVO;
 import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceBindReqVO;
 import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceRespVO;
+import cn.iocoder.yudao.module.iot.controller.app.device.vo.IotAppDeviceUpdateReqVO;
 
 import java.util.List;
 
@@ -57,5 +58,13 @@ public interface IotMemberDeviceService {
      * @param deviceName 设备名称
      */
     void unbindDevice(Long memberId, String productKey, String deviceName);
+
+    /**
+     * 更新绑定设备的备注信息（目前仅 nickname 别名）
+     *
+     * @param memberId 会员编号
+     * @param reqVO    更新请求（产品标识 + 设备名称 + 备注）
+     */
+    void updateDevice(Long memberId, IotAppDeviceUpdateReqVO reqVO);
 
 }
