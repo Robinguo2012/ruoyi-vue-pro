@@ -67,4 +67,14 @@ public interface IotMemberDeviceService {
      */
     void updateDevice(Long memberId, IotAppDeviceUpdateReqVO reqVO);
 
+    /**
+     * 查询会员绑定的单个设备详情（含最新备注名 / 状态 / 产品信息）
+     *
+     * @param memberId   会员编号
+     * @param productKey 产品标识
+     * @param deviceName 设备名称
+     * @return 绑定设备详情
+     */
+    IotAppDeviceRespVO getBoundDevice(Long memberId, String productKey, String deviceName);
+
 }

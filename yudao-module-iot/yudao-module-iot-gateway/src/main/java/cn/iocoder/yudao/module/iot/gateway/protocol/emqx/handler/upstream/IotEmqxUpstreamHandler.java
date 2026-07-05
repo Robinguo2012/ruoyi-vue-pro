@@ -3,7 +3,9 @@ package cn.iocoder.yudao.module.iot.gateway.protocol.emqx.handler.upstream;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
+import cn.iocoder.yudao.module.iot.core.enums.IotDeviceMessageMethodEnum;
 import cn.iocoder.yudao.module.iot.core.mq.message.IotDeviceMessage;
+import cn.iocoder.yudao.module.iot.core.util.IotDeviceMessageUtils;
 import cn.iocoder.yudao.module.iot.gateway.service.device.message.IotDeviceMessageService;
 import cn.iocoder.yudao.module.iot.gateway.util.IotMqttTopicUtils;
 import io.vertx.mqtt.messages.MqttPublishMessage;
@@ -49,8 +51,20 @@ public class IotEmqxUpstreamHandler {
                 log.warn("[handle][topic({}) payload({}) 消息解码失败]", topic, new String(payload));
                 return;
             }
-            // 2.2 标准化回复消息的 method（MQTT 协议中，设备回复消息的 method 会携带 _reply 后缀）
+            // 2.2 设备回复消息的 payload 常省略 method（如 Alink 仅返回 {id, code, data}），从 topic 补全
+            if (StrUtil.isBlank(message.getMethod())) {
+                message.setMethod(IotMqttTopicUtils.parseMethodFromTopic(topic));
+            }
+            // 2.3 标准化回复消息的 method（MQTT 协议中，设备回复消息的 method 会携带 _reply 后缀）
             IotMqttTopicUtils.normalizeReplyMethod(message);
+
+            // 2.4 过滤下行消息：网关订阅 /sys/# 会收到自身发布的下行（命令 / 平台回复），
+            //     若不过滤会形成“下发→自收→当作上行→再回复”的回环，导致 topic 不断追加 _reply
+            IotDeviceMessageMethodEnum methodEnum = IotDeviceMessageMethodEnum.of(message.getMethod());
+            if (methodEnum != null && !IotDeviceMessageUtils.isUpstreamMessage(message)) {
+                log.debug("[handle][跳过下行消息（网关自身发布回环）, topic: {}, method: {}]", topic, message.getMethod());
+                return;
+            }
 
             // 3. 发送消息到队列
             deviceMessageService.sendDeviceMessage(message, productKey, deviceName, serverId);

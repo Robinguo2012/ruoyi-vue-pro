@@ -89,12 +89,46 @@ public final class IotMqttTopicUtils {
         }
         // 1. 将点分隔符转换为斜杠
         String topicSuffix = method.replace('.', '/');
-        // 2. 对于回复消息，添加 _reply 后缀
-        if (isReply) {
+        // 2. 对于回复消息，添加 _reply 后缀（幂等：避免 method 已含 _reply 时重复追加，防止回环导致 set_reply_reply_... ）
+        if (isReply && !topicSuffix.endsWith(REPLY_TOPIC_SUFFIX)) {
             topicSuffix += REPLY_TOPIC_SUFFIX;
         }
         // 3. 构建完整主题
         return SYS_TOPIC_PREFIX + productKey + "/" + deviceName + "/" + topicSuffix;
+    }
+
+    /**
+     * 从 MQTT 主题中解析出消息方法
+     * <p>
+     * 主题格式：/sys/{productKey}/{deviceName}/{method...}，例如
+     * /sys/pk/dn/thing/property/set_reply → thing.property.set_reply
+     * <p>
+     * 设备回复消息的 payload 常省略 method 字段（如 Alink 仅返回 {id, code, data}），
+     * 此时可从 topic 反推 method。
+     *
+     * @param topic MQTT 主题
+     * @return 消息方法，解析失败返回 null
+     */
+    public static String parseMethodFromTopic(String topic) {
+        if (StrUtil.isBlank(topic)) {
+            return null;
+        }
+        String[] parts = topic.split("/");
+        // parts[0]=""、parts[1]="sys"、parts[2]=productKey、parts[3]=deviceName、parts[4+]=method
+        if (parts.length <= 4) {
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 4; i < parts.length; i++) {
+            if (StrUtil.isBlank(parts[i])) {
+                return null;
+            }
+            if (sb.length() > 0) {
+                sb.append('.');
+            }
+            sb.append(parts[i]);
+        }
+        return sb.toString();
     }
 
     /**

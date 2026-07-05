@@ -72,4 +72,13 @@ public class AppIotDeviceController {
         return success(true);
     }
 
+    @GetMapping("/get")
+    @Operation(summary = "查询当前会员绑定的设备详情")
+    @Parameter(name = "productKey", description = "产品标识", required = true, example = "ke5EYZurCB3FwFXp")
+    @Parameter(name = "deviceName", description = "设备名称", required = true, example = "switch001")
+    public CommonResult<IotAppDeviceRespVO> getBoundDevice(@RequestParam("productKey") String productKey,
+                                                           @RequestParam("deviceName") String deviceName) {
+        return success(memberDeviceService.getBoundDevice(getLoginUserId(), productKey, deviceName));
+    }
+
 }

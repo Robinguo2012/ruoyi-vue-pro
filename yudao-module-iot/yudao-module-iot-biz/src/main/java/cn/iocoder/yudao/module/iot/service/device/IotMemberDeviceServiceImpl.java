@@ -123,17 +123,40 @@ public class IotMemberDeviceServiceImpl implements IotMemberDeviceService {
         List<Long> deviceIds = list.stream().map(IotMemberDeviceDO::getDeviceId).collect(Collectors.toList());
         Map<Long, IotDeviceDO> deviceMap = deviceService.getDeviceMap(deviceIds);
         // 3. 组装返回
-        return list.stream().map(memberDevice -> {
-            IotAppDeviceRespVO respVO = BeanUtils.toBean(memberDevice, IotAppDeviceRespVO.class);
-            IotDeviceDO device = deviceMap.get(memberDevice.getDeviceId());
-            if (device != null) {
-                respVO.setProductId(device.getProductId());
-                respVO.setState(device.getState());
-                respVO.setOnlineTime(device.getOnlineTime());
-                respVO.setPicUrl(device.getPicUrl());
-            }
-            return respVO;
-        }).collect(Collectors.toList());
+        return list.stream()
+                .map(memberDevice -> assembleRespVO(memberDevice, deviceMap.get(memberDevice.getDeviceId())))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public IotAppDeviceRespVO getBoundDevice(Long memberId, String productKey, String deviceName) {
+        // 1. 校验设备存在
+        IotDeviceDO device = deviceService.getDeviceFromCache(productKey, deviceName);
+        if (device == null) {
+            throw exception(DEVICE_NOT_EXISTS);
+        }
+        // 2. 校验绑定关系属于当前会员
+        IotMemberDeviceDO memberDevice = memberDeviceMapper
+                .selectByMemberIdAndDeviceId(memberId, device.getId());
+        if (memberDevice == null) {
+            throw exception(MEMBER_DEVICE_NOT_EXISTS);
+        }
+        // 3. 组装返回
+        return assembleRespVO(memberDevice, device);
+    }
+
+    /**
+     * 将绑定关系 + 设备实时信息组装为返回 VO
+     */
+    private IotAppDeviceRespVO assembleRespVO(IotMemberDeviceDO memberDevice, IotDeviceDO device) {
+        IotAppDeviceRespVO respVO = BeanUtils.toBean(memberDevice, IotAppDeviceRespVO.class);
+        if (device != null) {
+            respVO.setProductId(device.getProductId());
+            respVO.setState(device.getState());
+            respVO.setOnlineTime(device.getOnlineTime());
+            respVO.setPicUrl(device.getPicUrl());
+        }
+        return respVO;
     }
 
     @Override
