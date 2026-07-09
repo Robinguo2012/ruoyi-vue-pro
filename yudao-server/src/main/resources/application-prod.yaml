@@ -1,0 +1,154 @@
+# ============================================================================
+# 生产环境配置（prod profile）
+# ----------------------------------------------------------------------------
+# 原则：只覆盖与 application.yaml 不同、且需按环境注入的项。
+#      所有敏感信息（数据库/Redis/监控密码等）一律用 ${ENV_VAR} 从环境变量注入，
+#      不写死在文件里。缺省 host 用 127.0.0.1，配合 deploy.sh 的 --network=host。
+#      没有默认值的占位符（如 MYSQL_PASSWORD）表示【必填】，缺失会启动即失败（fail fast）。
+# ============================================================================
+
+server:
+  port: ${SERVER_PORT:48080}
+
+spring:
+  autoconfigure:
+    # noinspection SpringBootApplicationYaml
+    exclude:
+      - com.alibaba.druid.spring.boot.autoconfigure.DruidDataSourceAutoConfigure # 使用 dynamic-datasource 多数据源
+      - org.springframework.boot.autoconfigure.quartz.QuartzAutoConfiguration # Quartz 由 yudao 框架自行装配
+      - org.springframework.ai.vectorstore.qdrant.autoconfigure.QdrantVectorStoreAutoConfiguration
+      - org.springframework.ai.vectorstore.milvus.autoconfigure.MilvusVectorStoreAutoConfiguration
+
+  # ---------------- 数据源 ----------------
+  datasource:
+    druid: # Druid 监控：生产开启，但必须加登录口令
+      web-stat-filter:
+        enabled: true
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/*
+        login-username: ${DRUID_USERNAME:admin}
+        login-password: ${DRUID_PASSWORD} # 【必填】Druid 监控台密码
+      filter:
+        stat:
+          enabled: true
+          log-slow-sql: true
+          slow-sql-millis: 100
+          merge-sql: true
+        wall:
+          config:
+            multi-statement-allow: true
+    dynamic:
+      druid: # 连接池：生产适度放大
+        initial-size: 5
+        min-idle: 10
+        max-active: 50
+        max-wait: 60000
+        time-between-eviction-runs-millis: 60000
+        min-evictable-idle-time-millis: 300000
+        max-evictable-idle-time-millis: 900000
+        validation-query: SELECT 1 FROM DUAL
+        test-while-idle: true
+        test-on-borrow: false
+        test-on-return: false
+        pool-prepared-statements: true
+        max-pool-prepared-statement-per-connection-size: 20
+      primary: master
+      datasource:
+        master:
+          url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:ruoyi-vue-pro}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true
+          username: ${MYSQL_USERNAME:root}
+          password: ${MYSQL_PASSWORD} # 【必填】
+        slave: # 无独立从库时，默认指向主库
+          lazy: true
+          url: jdbc:mysql://${MYSQL_SLAVE_HOST:${MYSQL_HOST:127.0.0.1}}:${MYSQL_SLAVE_PORT:${MYSQL_PORT:3306}}/${MYSQL_DATABASE:ruoyi-vue-pro}?useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&nullCatalogMeansCurrent=true&rewriteBatchedStatements=true
+          username: ${MYSQL_SLAVE_USERNAME:${MYSQL_USERNAME:root}}
+          password: ${MYSQL_SLAVE_PASSWORD:${MYSQL_PASSWORD}}
+        tdengine: # IoT 时序库；不使用 IoT 可忽略（lazy 懒加载不会阻塞启动）
+          lazy: true
+          url: jdbc:TAOS-WS://${TDENGINE_HOST:127.0.0.1}:${TDENGINE_PORT:6041}/${TDENGINE_DATABASE:ruoyi_vue_pro}?varcharAsString=true
+          driver-class-name: com.taosdata.jdbc.ws.WebSocketDriver
+          username: ${TDENGINE_USERNAME:root}
+          password: ${TDENGINE_PASSWORD:taosdata}
+          druid:
+            validation-query: SELECT SERVER_STATUS()
+
+  # ---------------- Redis ----------------
+  redis:
+    host: ${REDIS_HOST:127.0.0.1}
+    port: ${REDIS_PORT:6379}
+    database: ${REDIS_DATABASE:0}
+    password: ${REDIS_PASSWORD:} # 无密码则留空；强烈建议生产开启
+
+  # ---------------- Quartz 定时任务（与 local 一致，集群 + JDBC JobStore）----------------
+  quartz:
+    auto-startup: true
+    scheduler-name: schedulerName
+    job-store-type: jdbc
+    wait-for-jobs-to-complete-on-shutdown: true
+    properties:
+      org:
+        quartz:
+          scheduler:
+            instanceName: schedulerName
+            instanceId: AUTO
+          jobStore:
+            class: org.springframework.scheduling.quartz.LocalDataSourceJobStore
+            isClustered: true
+            clusterCheckinInterval: 15000
+            misfireThreshold: 60000
+          threadPool:
+            threadCount: 25
+            threadPriority: 5
+            class: org.quartz.simpl.SimpleThreadPool
+    jdbc:
+      initialize-schema: NEVER
+
+  # ---------------- Spring Boot Admin 监控（加口令）----------------
+  boot:
+    admin:
+      client:
+        url: http://127.0.0.1:${server.port}/${spring.boot.admin.context-path}
+        instance:
+          service-host-type: IP
+        username: ${SPRING_BOOT_ADMIN_USERNAME:admin}
+        password: ${SPRING_BOOT_ADMIN_PASSWORD} # 【必填】
+      context-path: /admin
+      # 实际部署请把公网域名填入 WEB_DOMAIN，用于放行 iframe 嵌入
+      frame-ancestors: "'self' ${WEB_DOMAIN:}"
+
+# ---------------- 消息队列 ----------------
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
+
+# ---------------- Actuator：生产只暴露必要端点 ----------------
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: 'health,info'
+
+# ---------------- 日志：生产收敛为 INFO ----------------
+logging:
+  file:
+    name: ${user.home}/logs/${spring.application.name}.log
+  level:
+    root: INFO
+    cn.iocoder.yudao: INFO
+    org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR
+
+debug: false
+
+# ---------------- 芋道安全相关开关（生产收紧）----------------
+yudao:
+  captcha:
+    enable: true # 生产开启图形验证码
+  security:
+    mock-enable: false # 关闭 Mock 登录
+  access-log:
+    enable: true # 开启访问日志
+  demo: false # 关闭演示模式
+  iot:
+    message-bus:
+      type: redis

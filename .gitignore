@@ -53,3 +53,7 @@ application-my.yaml
 /yudao-ui-app/unpackage/
 .DS_Store
 **/.DS_Store
+
+# 生产部署密钥文件，切勿提交
+deploy.env
+**/deploy.env

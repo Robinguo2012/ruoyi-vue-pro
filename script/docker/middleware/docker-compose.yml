@@ -1,0 +1,120 @@
+# 一键启动 yudao 全部中间件（阿里云 ECS / Linux 单机）
+# ---------------------------------------------------------------------------
+# 用法：
+#   cd script/docker/middleware
+#   docker compose up -d
+#   docker compose ps
+#
+# 设计说明：
+#   所有服务均用 network_mode: host，与仓库 deploy.sh（--network=host）保持一致。
+#   这样容器直接绑定宿主机端口，yudao-server / iot-gateway 用 127.0.0.1 即可连通，
+#   application-local.yaml 无需改动。host 模式下 ports: 被忽略，端口即容器内监听端口。
+#
+#   ⚠️ 凭据均为开发默认值（与 local profile 对应），生产环境请改强密码并同步修改
+#      application-local/prod.yaml，同时安全组切勿对公网开放 3306/6379/9876/6041。
+# ---------------------------------------------------------------------------
+
+name: yudao-middleware
+
+services:
+  # ---------------- MySQL 8（主数据库，3306）----------------
+  mysql:
+    container_name: yudao-mysql
+    image: mysql:8
+    restart: always
+    network_mode: host
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: "123456"          # 对应 local profile：root/123456
+      MYSQL_DATABASE: "ruoyi-vue-pro"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+      # 首次启动自动导入建表 SQL（仅当 data/mysql 为空时执行一次）
+      - ../../../sql/mysql/ruoyi-vue-pro.sql:/docker-entrypoint-initdb.d/ruoyi-vue-pro.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------------- Redis 6（缓存，6379）----------------
+  redis:
+    container_name: yudao-redis
+    image: redis:6-alpine
+    restart: always
+    network_mode: host
+    # local profile 未开 Redis 密码；如需开启：追加 --requirepass 你的密码，
+    # 并取消注释 application-local.yaml 中 spring.redis.password。
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------------- TDengine（IoT 时序库，6041 WS / 6030 native）----------------
+  tdengine:
+    container_name: yudao-tdengine
+    image: tdengine/tdengine:3.3.5.0
+    restart: always
+    network_mode: host
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data/taos/data:/var/lib/taos
+      - ./data/taos/log:/var/log/taos
+    healthcheck:
+      test: ["CMD", "taos", "-s", "show databases;"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ---------------- RocketMQ NameServer（9876）----------------
+  rmqnamesrv:
+    container_name: yudao-rmqnamesrv
+    image: apache/rocketmq:5.3.0
+    restart: always
+    network_mode: host
+    environment:
+      TZ: Asia/Shanghai
+      JAVA_OPT_EXT: "-server -Xms256m -Xmx256m -Xmn128m"   # 限制堆内存，避免默认 8G OOM
+    volumes:
+      - ./data/rocketmq/namesrv/logs:/home/rocketmq/logs
+    command: ["sh", "mqnamesrv"]
+
+  # ---------------- RocketMQ Broker + Proxy（10911 / 8081）----------------
+  rmqbroker:
+    container_name: yudao-rmqbroker
+    image: apache/rocketmq:5.3.0
+    restart: always
+    network_mode: host
+    depends_on:
+      - rmqnamesrv
+    environment:
+      TZ: Asia/Shanghai
+      NAMESRV_ADDR: "127.0.0.1:9876"
+      JAVA_OPT_EXT: "-server -Xms512m -Xmx512m -Xmn256m"
+    volumes:
+      - ./broker.conf:/opt/broker.conf:ro       # 关键：brokerIP1=127.0.0.1，客户端才连得上
+      - ./data/rocketmq/broker/logs:/home/rocketmq/logs
+      - ./data/rocketmq/broker/store:/home/rocketmq/store
+    command: ["sh", "mqbroker", "-c", "/opt/broker.conf", "--enable-proxy"]
+
+  # ---------------- EMQX（IoT 网关 MQTT Broker，1883 / Dashboard 18083）----------------
+  # 仅当部署 iot-gateway 时需要；不用 IoT 可删除本段。Dashboard 默认账号 admin/public。
+  emqx:
+    container_name: yudao-emqx
+    image: emqx/emqx:5.8
+    restart: always
+    network_mode: host
+    environment:
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data/emqx/data:/opt/emqx/data
+      - ./data/emqx/log:/opt/emqx/log
